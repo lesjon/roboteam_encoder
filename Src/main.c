@@ -134,6 +134,7 @@ int main(void)
   {
 		if(HAL_GetTick() > prev_tick + 100){
 			prev_tick = HAL_GetTick();
+
 			if(print_dac){
 				uprintf("v_ref = [%f], current_dac = [%x]\n\r", v_ref, current_dac);
 			}
