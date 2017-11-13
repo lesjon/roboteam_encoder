@@ -65,12 +65,11 @@ bool huart2_Rx_flag = false;
 bool print_time = false;
 bool print_encoder = false;
 bool print_speed = false;
-bool print_dac = false;
+bool print_dac = true;
 uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
-uint16_t current_dac = 0xff;
-float v_ref = 10;
-uint32_t PWM_cnt = 0;
+uint16_t current_dac = 0x0;
+float v_ref = 0;
 char small_buf;
 encoder enc = {0,0,0,0};
 /* USER CODE END PV */
@@ -119,10 +118,12 @@ int main(void)
   MX_USART1_UART_Init();
   MX_DAC1_Init();
   MX_TIM2_Init();
+  MX_TIM6_Init();
 
   /* USER CODE BEGIN 2 */
 	__HAL_DAC_ENABLE(&hdac1, DAC_CHANNEL_1);
 	__HAL_TIM_ENABLE(&htim2);
+	HAL_TIM_Base_Start_IT(&htim6);
 	char * startmessage = "---------------------\n\r";
 	uprintf(startmessage);
 	HAL_UART_Receive_IT(&huart1, rec_buf, 1);
@@ -228,8 +229,8 @@ void HandleCommand(char * input){
 		print_speed = !print_speed;
 	}else if(!memcmp(input, "dac", 3)){
 		char * ptr;
-	    int retval = strtol(input+4, &ptr, 10);
-		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_8B_R, retval);
+	    current_dac = strtol(input+4, &ptr, 10);
+		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, current_dac);
 	}else if(!memcmp(input, "ref", 3)){
 	    v_ref = atof(input+4);
 	}else if(!strcmp(input, "printdac")){
@@ -259,6 +260,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   }
 
 }
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+    Pid(v_ref);
+}
 
 void EncoderInput(uint8_t channel){
 	if(channel){
@@ -279,34 +284,38 @@ void EncoderInput(uint8_t channel){
 	}
 }
 #define COUNTS_PER_ROTATION 12
-#define TIMER_FREQUENCY		1000000
+#define CLK_FREQUENCY		48000000
 #define GEAR_RATIO			10
-#define Kp 1
-#define Ki 1
-#define Kd 1
+#define Kp					1
+#define Ki					1
+#define Kd					1
 
 float CalculateSpeed(encoder *encoder){
-	float rot_period = encoder->period * COUNTS_PER_ROTATION;
-	float rot_speed = 1/rot_period;
-	rot_speed = rot_speed * (TIMER_FREQUENCY/GEAR_RATIO) * enc.direction;
+	float rot_speed = 0;
+	if(encoder->period != 0){// if still zero, no encoder values were received
+		float rot_period = encoder->period * COUNTS_PER_ROTATION;
+		rot_speed = 1/rot_period;
+		rot_speed = rot_speed * ((CLK_FREQUENCY/(htim2.Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
+		encoder->period = 0;// So that if no new encoder values are caught we now speed = zero
+	}
 	return rot_speed;
-
 }
 
 void Pid(float v_ref){
 	static float prev_error = 0;
 	static float inte_error = 0;
+	float timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)htim6.Init.Prescaler + 1));
 	float error = v_ref - CalculateSpeed(&enc);
 	float P = Kp*error;
-	float I = Ki*(inte_error + error);
-	float D = Kd*(error-prev_error)*TIMER_FREQUENCY/enc.period;
+	float I = Ki*(inte_error + error)*timestep;
+	float D = (Kd*(error-prev_error))/timestep;
+	prev_error = error;
+
 	current_dac += (P + I + D);
-	current_dac = current_dac > 0xfff ? 0xfff : current_dac;
-	current_dac = current_dac < 0x00 ? 0x00 : current_dac;
+//	current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
+//	current_dac = (current_dac < 0x000) ? 0x000 : current_dac;
 
 	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, current_dac);
-
-	prev_error = error;
 }
 /* USER CODE END 4 */
 
