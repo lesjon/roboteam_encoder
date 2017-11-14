@@ -17,8 +17,6 @@ Src/main.o: ../Src/main.c D:/Documents/STM/PID_Control/Inc/main.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dma.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dma_ex.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_cortex.h \
- D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dac.h \
- D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dac_ex.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_flash.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_flash_ex.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_i2c.h \
@@ -29,7 +27,6 @@ Src/main.o: ../Src/main.c D:/Documents/STM/PID_Control/Inc/main.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_tim_ex.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart_ex.h \
- D:/Documents/STM/PID_Control/Inc/dac.h \
  D:/Documents/STM/PID_Control/Inc/tim.h \
  D:/Documents/STM/PID_Control/Inc/usart.h \
  D:/Documents/STM/PID_Control/Inc/gpio.h \
@@ -74,10 +71,6 @@ D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dma_
 
 D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_cortex.h:
 
-D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dac.h:
-
-D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_dac_ex.h:
-
 D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_flash.h:
 
 D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_flash_ex.h:
@@ -97,8 +90,6 @@ D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_tim_
 D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart.h:
 
 D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart_ex.h:
-
-D:/Documents/STM/PID_Control/Inc/dac.h:
 
 D:/Documents/STM/PID_Control/Inc/tim.h:
 

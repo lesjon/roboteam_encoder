@@ -5,7 +5,6 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../Src/PuttyInterface.c \
-../Src/dac.c \
 ../Src/gpio.c \
 ../Src/main.c \
 ../Src/stm32f0xx_hal_msp.c \
@@ -16,7 +15,6 @@ C_SRCS += \
 
 OBJS += \
 ./Src/PuttyInterface.o \
-./Src/dac.o \
 ./Src/gpio.o \
 ./Src/main.o \
 ./Src/stm32f0xx_hal_msp.o \
@@ -27,7 +25,6 @@ OBJS += \
 
 C_DEPS += \
 ./Src/PuttyInterface.d \
-./Src/dac.d \
 ./Src/gpio.d \
 ./Src/main.d \
 ./Src/stm32f0xx_hal_msp.d \

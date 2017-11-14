@@ -38,7 +38,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f0xx_hal.h"
-#include "dac.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -59,7 +58,18 @@ typedef struct{
 	int8_t direction;
 	int period;//us
 }encoder;
-
+typedef struct{
+	float Kp;
+	float Ki;
+	float Kd;
+	float timestep;
+	float COUNTS_PER_ROTATION;
+	float CLK_FREQUENCY;
+	float GEAR_RATIO;
+	TIM_HandleTypeDef* actuator;
+	TIM_HandleTypeDef* MeasurementTimer;
+	TIM_HandleTypeDef* CallbackTimer;
+}PID_controller;
 
 bool huart2_Rx_flag = false;
 bool print_time = false;
@@ -68,7 +78,7 @@ bool print_speed = false;
 bool print_dac = true;
 uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
-uint16_t current_dac = 0x0;
+int64_t current_dac = 0x0;
 float v_ref = 0;
 char small_buf;
 encoder enc = {0,0,0,0};
@@ -82,6 +92,7 @@ void SystemClock_Config(void);
 void HandleCommand(char * input);
 void EncoderInput(uint8_t channel);//0 = a, 0 = b;
 float CalculateSpeed(encoder *encoder);
+void Pid_Init(PID_controller PID_controller);
 void Pid(float v_ref);
 
 /* USER CODE END PFP */
@@ -116,14 +127,18 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
-  MX_DAC1_Init();
   MX_TIM2_Init();
   MX_TIM6_Init();
+  MX_TIM14_Init();
 
   /* USER CODE BEGIN 2 */
-	__HAL_DAC_ENABLE(&hdac1, DAC_CHANNEL_1);
-	__HAL_TIM_ENABLE(&htim2);
-	HAL_TIM_Base_Start_IT(&htim6);
+  PID_controller pid = {
+  .CallbackTimer = &htim6,
+  .MeasurementTimer = &htim2,
+  .actuator = &htim14,
+  };
+  Pid_Init(pid);
+
 	char * startmessage = "---------------------\n\r";
 	uprintf(startmessage);
 	HAL_UART_Receive_IT(&huart1, rec_buf, 1);
@@ -137,7 +152,7 @@ int main(void)
 			prev_tick = HAL_GetTick();
 
 			if(print_dac){
-				uprintf("v_ref = [%f], current_dac = [%x]\n\r", v_ref, current_dac);
+				uprintf("v_ref = [%f], current_dac = [%d]\n\r", v_ref, current_dac);
 			}
 			if(print_time){
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
@@ -230,7 +245,8 @@ void HandleCommand(char * input){
 	}else if(!memcmp(input, "dac", 3)){
 		char * ptr;
 	    current_dac = strtol(input+4, &ptr, 10);
-		HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, current_dac);
+
+		__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_dac);
 	}else if(!memcmp(input, "ref", 3)){
 	    v_ref = atof(input+4);
 	}else if(!strcmp(input, "printdac")){
@@ -261,7 +277,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-	HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
     Pid(v_ref);
 }
 
@@ -287,7 +302,7 @@ void EncoderInput(uint8_t channel){
 #define CLK_FREQUENCY		48000000
 #define GEAR_RATIO			10
 #define Kp					1
-#define Ki					1
+#define Ki					0
 #define Kd					1
 
 float CalculateSpeed(encoder *encoder){
@@ -296,26 +311,37 @@ float CalculateSpeed(encoder *encoder){
 		float rot_period = encoder->period * COUNTS_PER_ROTATION;
 		rot_speed = 1/rot_period;
 		rot_speed = rot_speed * ((CLK_FREQUENCY/(htim2.Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
-		encoder->period = 0;// So that if no new encoder values are caught we now speed = zero
+		//encoder->period = 0;// So that if no new encoder values are caught we now speed = zero
 	}
 	return rot_speed;
 }
 
+void Pid_Init(PID_controller PID_controller){
+	HAL_TIM_PWM_Start(PID_controller.actuator,TIM_CHANNEL_1);
+	__HAL_TIM_ENABLE(PID_controller.MeasurementTimer);
+	HAL_TIM_Base_Start_IT(PID_controller.CallbackTimer);
+}
 void Pid(float v_ref){
 	static float prev_error = 0;
 	static float inte_error = 0;
-	float timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)htim6.Init.Prescaler + 1));
+	float timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)(htim6.Init.Prescaler + 1)));
 	float error = v_ref - CalculateSpeed(&enc);
 	float P = Kp*error;
 	float I = Ki*(inte_error + error)*timestep;
 	float D = (Kd*(error-prev_error))/timestep;
 	prev_error = error;
 
-	current_dac += (P + I + D);
-//	current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
-//	current_dac = (current_dac < 0x000) ? 0x000 : current_dac;
-
-	HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, current_dac);
+	current_dac += (int)(P + I + D);
+	if (current_dac < 0){
+		uprintf("dac is kleiner dan nul :%ld\n\r", current_dac);
+		current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
+		current_dac = (current_dac < 0) ? 0 : current_dac;
+		uprintf("dac is nul :%ld\n\r", current_dac);
+	}else{
+		current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
+		current_dac = (current_dac < 0) ? 0 : current_dac;
+	}
+	__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_dac);
 }
 /* USER CODE END 4 */
 
