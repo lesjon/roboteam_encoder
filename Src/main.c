@@ -75,7 +75,12 @@ bool huart2_Rx_flag = false;
 bool print_time = false;
 bool print_encoder = false;
 bool print_speed = false;
-bool print_dac = true;
+bool print_dac = false;
+bool print_pid = false;
+float P = 0;
+float I = 0;
+float D = 0;
+float timestep;
 uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
 int64_t current_pwm = 0x0;
@@ -163,6 +168,9 @@ int main(void)
 			if(print_speed){
 				uprintf("encoder speed = [%f];\n\r", CalculateSpeed(&enc));
 			}
+			if(print_pid){
+				uprintf("PID = [%f, %f, %f]\n\r", P, I, D);
+			}
 		}
 		if(huart2_Rx_flag){
 			huart2_Rx_flag = false;
@@ -242,6 +250,8 @@ void HandleCommand(char * input){
 		print_encoder = !print_encoder;
 	}else if(!strcmp(input, "speed")){
 		print_speed = !print_speed;
+	}else if(!strcmp(input, "pid")){
+		print_pid = !print_pid;
 	}else if(!memcmp(input, "dac", 3)){
 		char * ptr;
 	    current_pwm = strtol(input+4, &ptr, 10);
@@ -302,16 +312,20 @@ void EncoderInput(uint8_t channel){
 #define CLK_FREQUENCY		48000000
 #define GEAR_RATIO			10
 #define Kp					1000
-#define Ki					10
-#define Kd					1
+#define Ki					100
+#define Kd					0.1
 
 float CalculateSpeed(encoder *encoder){
 	float rot_speed = 0;
-	if(encoder->period != 0){// if still zero, no encoder values were received
+	if(encoder->period > __HAL_TIM_GET_COUNTER(&htim2)){// if still zero, no encoder values were received
 		float rot_period = encoder->period * COUNTS_PER_ROTATION;
 		rot_speed = 1/rot_period;
 		rot_speed = rot_speed * ((CLK_FREQUENCY/(htim2.Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
 		//encoder->period = 0;// So that if no new encoder values are caught we now speed = zero
+	}else{
+		float rot_period = __HAL_TIM_GET_COUNTER(&htim2) * COUNTS_PER_ROTATION;
+		rot_speed = 1/rot_period;
+		rot_speed = rot_speed * ((CLK_FREQUENCY/(htim2.Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
 	}
 	return rot_speed;
 }
@@ -320,17 +334,15 @@ void Pid_Init(PID_controller PID_controller){
 	HAL_TIM_PWM_Start(PID_controller.actuator,TIM_CHANNEL_1);
 	__HAL_TIM_ENABLE(PID_controller.MeasurementTimer);
 	HAL_TIM_Base_Start_IT(PID_controller.CallbackTimer);
+	timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)(htim6.Init.Prescaler + 1)));
 }
 void Pid(float v_ref){
 	static float prev_error = 0;
-	static float I = 0;
-	float timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)(htim6.Init.Prescaler + 1)));
 	float error = v_ref - CalculateSpeed(&enc);
-	float P = Kp*error;
+	P = Kp*error;
 	I += Ki*error*timestep;
-
 	I = (I > 0xfff) ? 0xfff : (I < 0) ? 0 : I;
-	float D = (Kd*(error-prev_error))/timestep;
+	D = (Kd*(error-prev_error))/timestep;
 	prev_error = error;
 
 	current_pwm = (int)(P + I + D);
