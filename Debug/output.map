@@ -5066,7 +5066,7 @@ LOAD c:/ac6/systemworkbench/plugins/fr.ac6.mcu.externaltools.arm-none.win32_1.13
                 0x00000f0b       0x1e c:/ac6/systemworkbench/plugins/fr.ac6.mcu.externaltools.arm-none.win32_1.13.3.201707031232/tools/compiler/bin/../lib/gcc/arm-none-eabi/5.4.1/armv6-m/crtn.o
 OUTPUT(PID_Control.elf elf32-littlearm)
 
-.debug_info     0x00000000     0xd508
+.debug_info     0x00000000     0xd507
  .debug_info    0x00000000      0x603 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal.o
  .debug_info    0x00000603      0x779 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_cortex.o
  .debug_info    0x00000d7c      0x7d7 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_dma.o
@@ -5078,14 +5078,14 @@ OUTPUT(PID_Control.elf elf32-littlearm)
  .debug_info    0x000069a4     0x1825 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart.o
  .debug_info    0x000081c9      0x98e Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart_ex.o
  .debug_info    0x00008b57      0x90e Src/PuttyInterface.o
- .debug_info    0x00009465      0x49b Src/gpio.o
- .debug_info    0x00009900     0x1649 Src/main.o
- .debug_info    0x0000af49      0x2d7 Src/stm32f0xx_hal_msp.o
- .debug_info    0x0000b220      0x925 Src/stm32f0xx_it.o
- .debug_info    0x0000bb45      0x24b Src/system_stm32f0xx.o
- .debug_info    0x0000bd90      0xcf3 Src/tim.o
- .debug_info    0x0000ca83      0xa1d Src/usart.o
- .debug_info    0x0000d4a0       0x68 startup/startup_stm32f051x8.o
+ .debug_info    0x00009465      0x49a Src/gpio.o
+ .debug_info    0x000098ff     0x1649 Src/main.o
+ .debug_info    0x0000af48      0x2d7 Src/stm32f0xx_hal_msp.o
+ .debug_info    0x0000b21f      0x925 Src/stm32f0xx_it.o
+ .debug_info    0x0000bb44      0x24b Src/system_stm32f0xx.o
+ .debug_info    0x0000bd8f      0xcf3 Src/tim.o
+ .debug_info    0x0000ca82      0xa1d Src/usart.o
+ .debug_info    0x0000d49f       0x68 startup/startup_stm32f051x8.o
 
 .debug_abbrev   0x00000000     0x211b
  .debug_abbrev  0x00000000      0x1f7 Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal.o
