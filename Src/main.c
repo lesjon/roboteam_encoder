@@ -78,7 +78,7 @@ bool print_speed = false;
 bool print_dac = true;
 uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
-int64_t current_dac = 0x0;
+int64_t current_pwm = 0x0;
 float v_ref = 0;
 char small_buf;
 encoder enc = {0,0,0,0};
@@ -152,7 +152,7 @@ int main(void)
 			prev_tick = HAL_GetTick();
 
 			if(print_dac){
-				uprintf("v_ref = [%f], current_dac = [%d]\n\r", v_ref, current_dac);
+				uprintf("v_ref = [%f], current_pwm = [%d]\n\r", v_ref, current_pwm);
 			}
 			if(print_time){
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
@@ -244,9 +244,9 @@ void HandleCommand(char * input){
 		print_speed = !print_speed;
 	}else if(!memcmp(input, "dac", 3)){
 		char * ptr;
-	    current_dac = strtol(input+4, &ptr, 10);
+	    current_pwm = strtol(input+4, &ptr, 10);
 
-		__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_dac);
+		__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_pwm);
 	}else if(!memcmp(input, "ref", 3)){
 	    v_ref = atof(input+4);
 	}else if(!strcmp(input, "printdac")){
@@ -301,8 +301,8 @@ void EncoderInput(uint8_t channel){
 #define COUNTS_PER_ROTATION 12
 #define CLK_FREQUENCY		48000000
 #define GEAR_RATIO			10
-#define Kp					1
-#define Ki					0
+#define Kp					1000
+#define Ki					10
 #define Kd					1
 
 float CalculateSpeed(encoder *encoder){
@@ -323,25 +323,20 @@ void Pid_Init(PID_controller PID_controller){
 }
 void Pid(float v_ref){
 	static float prev_error = 0;
-	static float inte_error = 0;
+	static float I = 0;
 	float timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)(htim6.Init.Prescaler + 1)));
 	float error = v_ref - CalculateSpeed(&enc);
 	float P = Kp*error;
-	float I = Ki*(inte_error + error)*timestep;
+	I += Ki*error*timestep;
+
+	I = (I > 0xfff) ? 0xfff : (I < 0) ? 0 : I;
 	float D = (Kd*(error-prev_error))/timestep;
 	prev_error = error;
 
-	current_dac += (int)(P + I + D);
-	if (current_dac < 0){
-		uprintf("dac is kleiner dan nul :%ld\n\r", current_dac);
-		current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
-		current_dac = (current_dac < 0) ? 0 : current_dac;
-		uprintf("dac is nul :%ld\n\r", current_dac);
-	}else{
-		current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
-		current_dac = (current_dac < 0) ? 0 : current_dac;
-	}
-	__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_dac);
+	current_pwm = (int)(P + I + D);
+	current_pwm = (current_pwm > 0xfff) ? 0xfff : (current_pwm < 0) ? 0 : current_pwm;
+
+	__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_pwm);
 }
 /* USER CODE END 4 */
 
