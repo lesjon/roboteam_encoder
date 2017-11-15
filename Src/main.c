@@ -327,15 +327,17 @@ void Pid(float v_ref){
 	float timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)(htim6.Init.Prescaler + 1)));
 	float error = v_ref - CalculateSpeed(&enc);
 	float P = Kp*error;
-	float I = Ki*(inte_error + error)*timestep;
+	float I = Ki*(inte_error + error)*timestep; // inte_error <-- not assigned value
+	// float I += Ki*error*timestep;
 	float D = (Kd*(error-prev_error))/timestep;
 	prev_error = error;
+	// inte_error += error;
 
-	current_dac += (int)(P + I + D);
+	current_dac += (int)(P + I + D); // ??? moet toch gewoon geassigned worden, voltage --> speed
 	if (current_dac < 0){
 		uprintf("dac is kleiner dan nul :%ld\n\r", current_dac);
-		current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
-		current_dac = (current_dac < 0) ? 0 : current_dac;
+		current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;	// ????
+		current_dac = (current_dac < 0) ? 0 : current_dac;			// ???? not needed
 		uprintf("dac is nul :%ld\n\r", current_dac);
 	}else{
 		current_dac = (current_dac > 0xfff) ? 0xfff : current_dac;
