@@ -17,6 +17,7 @@
 "Src/PuttyInterface.o"
 "Src/gpio.o"
 "Src/main.o"
+"Src/pid.o"
 "Src/stm32f0xx_hal_msp.o"
 "Src/stm32f0xx_it.o"
 "Src/system_stm32f0xx.o"

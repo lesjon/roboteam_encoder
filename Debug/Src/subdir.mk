@@ -7,6 +7,7 @@ C_SRCS += \
 ../Src/PuttyInterface.c \
 ../Src/gpio.c \
 ../Src/main.c \
+../Src/pid.c \
 ../Src/stm32f0xx_hal_msp.c \
 ../Src/stm32f0xx_it.c \
 ../Src/system_stm32f0xx.c \
@@ -17,6 +18,7 @@ OBJS += \
 ./Src/PuttyInterface.o \
 ./Src/gpio.o \
 ./Src/main.o \
+./Src/pid.o \
 ./Src/stm32f0xx_hal_msp.o \
 ./Src/stm32f0xx_it.o \
 ./Src/system_stm32f0xx.o \
@@ -27,6 +29,7 @@ C_DEPS += \
 ./Src/PuttyInterface.d \
 ./Src/gpio.d \
 ./Src/main.d \
+./Src/pid.d \
 ./Src/stm32f0xx_hal_msp.d \
 ./Src/stm32f0xx_it.d \
 ./Src/system_stm32f0xx.d \

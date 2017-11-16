@@ -55,6 +55,8 @@
 typedef struct{
 	int a_cnt;
 	int b_cnt;
+	bool B_high;
+	bool A_high;
 	int8_t direction;
 	int period;//us
 }encoder;
@@ -81,9 +83,10 @@ float P = 0;
 float I = 0;
 float D = 0;
 float timestep;
+PID_controller global_PID;
 uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
-int64_t current_pwm = 0x0;
+int16_t current_pwm = 0x0;
 float v_ref = 0;
 char small_buf;
 encoder enc = {0,0,0,0};
@@ -163,7 +166,7 @@ int main(void)
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
 			}
 			if(print_encoder){
-				uprintf("encoder readings are = [%d , %d, %d, %i];\n\r", enc.a_cnt, enc.b_cnt, enc.period, enc.direction);
+				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", enc.a_cnt, enc.b_cnt, enc.period, enc.direction, enc.B_high, enc.A_high);
 			}
 			if(print_speed){
 				uprintf("encoder speed = [%f];\n\r", CalculateSpeed(&enc));
@@ -291,20 +294,45 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 }
 
 void EncoderInput(uint8_t channel){
-	if(channel){
-		if(HAL_GPIO_ReadPin(ENCODER_A_GPIO_Port, ENCODER_A_Pin)){
-			enc.a_cnt++;
-			enc.period = __HAL_TIM_GET_COUNTER(&htim2);
-			__HAL_TIM_SET_COUNTER(&htim2, 0);
-			if(HAL_GPIO_ReadPin(ENCODER_B_GPIO_Port, ENCODER_B_Pin)){
+	if(channel == 0){
+		enc.A_high = HAL_GPIO_ReadPin(ENCODER_A_GPIO_Port, ENCODER_A_Pin);
+		if(enc.A_high){
+			enc.period = __HAL_TIM_GET_COUNTER(global_PID.MeasurementTimer);
+			__HAL_TIM_SET_COUNTER(global_PID.MeasurementTimer, 0);
+			if(enc.B_high){
+				enc.a_cnt--;
+				enc.direction = -1;
+			}else{
+				enc.a_cnt++;
+				enc.direction = 1;
+			}
+		}else{
+			if(enc.B_high){
+				enc.a_cnt++;
 				enc.direction = 1;
 			}else{
+				enc.a_cnt--;
 				enc.direction = -1;
 			}
 		}
-	}else{
-		if(HAL_GPIO_ReadPin(ENCODER_B_GPIO_Port, ENCODER_B_Pin)){
-			enc.b_cnt++;
+	}else if(channel == 1){
+		enc.B_high = HAL_GPIO_ReadPin(ENCODER_B_GPIO_Port, ENCODER_B_Pin);
+		if(enc.B_high){
+			if(enc.A_high){
+				enc.b_cnt++;
+				enc.direction = 1;
+			}else{
+				enc.b_cnt--;
+				enc.direction = -1;
+			}
+		}else{
+			if(enc.A_high){
+				enc.b_cnt--;
+				enc.direction = -1;
+			}else{
+				enc.b_cnt++;
+				enc.direction = 1;
+			}
 		}
 	}
 }
@@ -313,28 +341,36 @@ void EncoderInput(uint8_t channel){
 #define GEAR_RATIO			10
 #define Kp					1000
 #define Ki					100
-#define Kd					0.1
+#define Kd					.1
+
+
+//PID_controller pid = {
+//.CallbackTimer = &htim6,
+//.MeasurementTimer = &htim2,
+//.actuator = &htim14,
+//};
 
 float CalculateSpeed(encoder *encoder){
 	float rot_speed = 0;
-	if(encoder->period > __HAL_TIM_GET_COUNTER(&htim2)){// if still zero, no encoder values were received
+	if(encoder->period > __HAL_TIM_GET_COUNTER(global_PID.MeasurementTimer)){// if still zero, no encoder values were received
 		float rot_period = encoder->period * COUNTS_PER_ROTATION;
 		rot_speed = 1/rot_period;
-		rot_speed = rot_speed * ((CLK_FREQUENCY/(htim2.Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
+		rot_speed = rot_speed * ((CLK_FREQUENCY/(global_PID.MeasurementTimer->Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
 		//encoder->period = 0;// So that if no new encoder values are caught we now speed = zero
 	}else{
-		float rot_period = __HAL_TIM_GET_COUNTER(&htim2) * COUNTS_PER_ROTATION;
+		float rot_period = __HAL_TIM_GET_COUNTER(global_PID.MeasurementTimer) * COUNTS_PER_ROTATION;
 		rot_speed = 1/rot_period;
-		rot_speed = rot_speed * ((CLK_FREQUENCY/(htim2.Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
+		rot_speed = rot_speed * ((CLK_FREQUENCY/(global_PID.MeasurementTimer->Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
 	}
 	return rot_speed;
 }
 
 void Pid_Init(PID_controller PID_controller){
-	HAL_TIM_PWM_Start(PID_controller.actuator,TIM_CHANNEL_1);
-	__HAL_TIM_ENABLE(PID_controller.MeasurementTimer);
-	HAL_TIM_Base_Start_IT(PID_controller.CallbackTimer);
-	timestep = ((float)htim6.Init.Period)/((float)CLK_FREQUENCY/((float)(htim6.Init.Prescaler + 1)));
+	global_PID = PID_controller;
+	HAL_TIM_PWM_Start(global_PID.actuator,TIM_CHANNEL_1);
+	__HAL_TIM_ENABLE(global_PID.MeasurementTimer);
+	HAL_TIM_Base_Start_IT(global_PID.CallbackTimer);
+	timestep = ((float)global_PID.CallbackTimer->Init.Period)/((float)CLK_FREQUENCY/((float)(global_PID.CallbackTimer->Init.Prescaler + 1)));
 }
 void Pid(float v_ref){
 	static float prev_error = 0;
