@@ -34,7 +34,8 @@ Src/main.o: ../Src/main.c D:/Documents/STM/PID_Control/Inc/main.h \
  D:/Documents/STM/PID_Control/Inc/usart.h \
  D:/Documents/STM/PID_Control/Inc/pid.h \
  D:/Documents/STM/PID_Control/Inc/tim.h \
- D:/Documents/STM/PID_Control/Inc/gpio.h
+ D:/Documents/STM/PID_Control/Inc/gpio.h \
+ D:/Documents/STM/PID_Control/Inc/encoder.h
 
 D:/Documents/STM/PID_Control/Inc/main.h:
 
@@ -109,3 +110,5 @@ D:/Documents/STM/PID_Control/Inc/pid.h:
 D:/Documents/STM/PID_Control/Inc/tim.h:
 
 D:/Documents/STM/PID_Control/Inc/gpio.h:
+
+D:/Documents/STM/PID_Control/Inc/encoder.h:

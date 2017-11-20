@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include "PuttyInterface.h"
 #include "pid.h"
+#include "encoder.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -63,6 +64,24 @@ bool print_pid = false;
 uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
 char small_buf;
+
+encoder enc = {
+		.ENCODER_A = ENCODER_A_Pin,
+		.ENCODER_A_Port = ENCODER_A_GPIO_Port,
+		.ENCODER_B = ENCODER_B_Pin,
+		.ENCODER_B_Port = ENCODER_B_GPIO_Port,
+		.MeasurementTimer = &htim2,
+		.a_cnt = 0,
+		.b_cnt = 0,
+		.B_high = false,
+		.A_high = false,
+		.direction = 0,
+		.period = 0xffff,
+		.speed = 0,
+		.COUNTS_PER_ROTATION = 12,
+		.CLK_FREQUENCY = 48000000,
+		.GEAR_RATIO = 10,
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -119,13 +138,10 @@ int main(void)
 	.pid = pid,
 	.K_terms = terms,
 	.CallbackTimer = &htim6,
-	.MeasurementTimer = &htim2,
 	.actuator = &htim14,
-	.GEAR_RATIO = 10,
-	.COUNTS_PER_ROTATION = 12,
-	.CLK_FREQUENCY = 48000000,
   };
   pid_Init(pc);
+  encoder_Init(&enc);
 
 	char * startmessage = "---------------------\n\r";
 	uprintf(startmessage);
@@ -147,11 +163,10 @@ int main(void)
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
 			}
 			if(print_encoder){
-				encoder enc = pid_GetEncoderValues();
 				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", enc.a_cnt, enc.b_cnt, enc.period, enc.direction, enc.B_high, enc.A_high);
 			}
 			if(print_speed){
-				uprintf("encoder speed = [%f];\n\r", pid_GetLatestSpeed());
+				uprintf("encoder speed = [%f];\n\r", encoder_GetLatestSpeed(&enc));
 			}
 			if(print_pid){
 				PID pid = pid_GetCurrentPIDValues();
@@ -259,19 +274,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(GPIO_Pin);
-
-  switch(GPIO_Pin){
-  case 0x0040:// channel A/0
-	  pid_EncoderInput(0);
-	  break;
-  case 0x0080:// channel A/0
-	  pid_EncoderInput(1);
-	  break;
-  }
-
+  encoder_Input(GPIO_Pin, &enc);
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    pid_Control();
+    pid_Control(encoder_CalculateSpeed(&enc));
 }
 /* USER CODE END 4 */
 

@@ -1,4 +1,5 @@
-Src/pid.o: ../Src/pid.c D:/Documents/STM/PID_Control/Inc/pid.h \
+Src/encoder.o: ../Src/encoder.c \
+ D:/Documents/STM/PID_Control/Inc/encoder.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal.h \
  D:/Documents/STM/PID_Control/Inc/stm32f0xx_hal_conf.h \
  D:/Documents/STM/PID_Control/Inc/main.h \
@@ -28,12 +29,9 @@ Src/pid.o: ../Src/pid.c D:/Documents/STM/PID_Control/Inc/pid.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart.h \
  D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart_ex.h \
  D:/Documents/STM/PID_Control/Inc/tim.h \
- D:/Documents/STM/PID_Control/Inc/gpio.h \
- D:/Documents/STM/PID_Control/Inc/tim.h \
- D:/Documents/STM/PID_Control/Inc/PuttyInterface.h \
- D:/Documents/STM/PID_Control/Inc/usart.h
+ D:/Documents/STM/PID_Control/Inc/gpio.h
 
-D:/Documents/STM/PID_Control/Inc/pid.h:
+D:/Documents/STM/PID_Control/Inc/encoder.h:
 
 D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal.h:
 
@@ -94,9 +92,3 @@ D:/Documents/STM/PID_Control/Drivers/STM32F0xx_HAL_Driver/Inc/stm32f0xx_hal_uart
 D:/Documents/STM/PID_Control/Inc/tim.h:
 
 D:/Documents/STM/PID_Control/Inc/gpio.h:
-
-D:/Documents/STM/PID_Control/Inc/tim.h:
-
-D:/Documents/STM/PID_Control/Inc/PuttyInterface.h:
-
-D:/Documents/STM/PID_Control/Inc/usart.h:
