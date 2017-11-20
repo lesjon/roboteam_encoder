@@ -17,15 +17,11 @@
  * holds both constants and output
  */
 typedef struct{
-	uint16_t CHANNEL_A;// pin number of channel A
-	GPIO_TypeDef * CHANNEL_A_Port; // GPIO Port of channel A
-	uint16_t CHANNEL_B;// pin number of channel B
-	GPIO_TypeDef * CHANNEL_B_Port; // GPIO Port of channel B
+	uint16_t CHANNEL[2];// pin number of channel A
+	GPIO_TypeDef * CHANNEL_Port[2]; // GPIO Port of channel A
 	TIM_HandleTypeDef* MeasurementTimer;// This is the handle of the timer that will be used to measure the time between interrupts
-	int a_cnt;//counter for the rising edges of channel A, counts up or down depending on direction
-	int b_cnt;//counter for the rising edges of channel B
-	bool B_high;// is channel B currently high or low?
-	bool A_high;
+	int cnt[2];//counter for the rising edges of channel A, counts up or down depending on direction
+	bool high[2];
 	int8_t direction;// current direction, 1 is forward voltage, -1 is reverse voltage 0 is not yet known
 	int period;// period in us for the latest count
 	float speed;// speed calculated by encoder_CalculateSpeed()

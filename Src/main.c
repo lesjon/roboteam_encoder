@@ -66,15 +66,11 @@ uint8_t rec_buf[8];
 char small_buf;
 
 encoder_HandleTypeDef enc = {
-		.CHANNEL_A = ENCODER_A_Pin,
-		.CHANNEL_A_Port = ENCODER_A_GPIO_Port,
-		.CHANNEL_B = ENCODER_B_Pin,
-		.CHANNEL_B_Port = ENCODER_B_GPIO_Port,
+		.CHANNEL = {ENCODER_A_Pin,ENCODER_B_Pin},
+		.CHANNEL_Port = {ENCODER_A_GPIO_Port, ENCODER_B_GPIO_Port},
 		.MeasurementTimer = &htim2,
-		.a_cnt = 0,
-		.b_cnt = 0,
-		.B_high = false,
-		.A_high = false,
+		.cnt = {0,0},
+		.high = {false, false},
 		.direction = 0,
 		.period = 0xffff,
 		.speed = 0,
@@ -163,7 +159,7 @@ int main(void)
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
 			}
 			if(print_encoder){
-				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", enc.a_cnt, enc.b_cnt, enc.period, enc.direction, enc.B_high, enc.A_high);
+				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", enc.cnt[0], enc.cnt[1], enc.period, enc.direction, enc.high[0], enc.high[1]);
 			}
 			if(print_speed){
 				uprintf("encoder speed = [%f];\n\r", encoder_GetLatestSpeed(&enc));
