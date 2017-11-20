@@ -65,7 +65,7 @@ uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
 char small_buf;
 
-encoder_HandleTypeDef enc = {
+encoder_HandleTypeDef encoder1 = {
 		.CHANNEL = {ENCODER_A_Pin,ENCODER_B_Pin},
 		.CHANNEL_Port = {ENCODER_A_GPIO_Port, ENCODER_B_GPIO_Port},
 		.MeasurementTimer = &htim2,
@@ -77,6 +77,16 @@ encoder_HandleTypeDef enc = {
 		.COUNTS_PER_ROTATION = 12,
 		.CLK_FREQUENCY = 48000000,
 		.GEAR_RATIO = 10,
+};
+PID_controller_HandleTypeDef pc1 = {
+		.pid = {0,0,0},
+		.K_terms = {1000, 100, .1},
+		.v_ref = 0,
+		.timestep = 0,
+		.actuator = &htim14,
+		.CallbackTimer = &htim6,
+		.CLK_FREQUENCY = 48000000,
+		.current_pwm = 0,
 };
 /* USER CODE END PV */
 
@@ -124,20 +134,9 @@ int main(void)
   MX_TIM14_Init();
 
   /* USER CODE BEGIN 2 */
-  PID pid = {0,0,0};
-  PID_Terms terms = {
-		  .Kp = 1000,
-		  .Ki = 100,
-		  .Kd = 0.1
-  };
-  PID_controller pc = {
-	.pid = pid,
-	.K_terms = terms,
-	.CallbackTimer = &htim6,
-	.actuator = &htim14,
-  };
-  pid_Init(pc);
-  encoder_Init(&enc);
+
+  pid_Init(&pc1);
+  encoder_Init(&encoder1);
 
 	char * startmessage = "---------------------\n\r";
 	uprintf(startmessage);
@@ -152,20 +151,19 @@ int main(void)
 			prev_tick = HAL_GetTick();
 
 			if(print_dac){
-				PID_controller pc = pid_GetControllerValue();
-				uprintf("v_ref = [%f], current_pwm = [%d]\n\r", pc.v_ref, pid_GetCurrentOutput());
+				uprintf("v_ref = [%f], current_pwm = [%d]\n\r", pc1.v_ref, pid_GetCurrentOutput(&pc1));
 			}
 			if(print_time){
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
 			}
 			if(print_encoder){
-				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", enc.cnt[0], enc.cnt[1], enc.period, enc.direction, enc.high[0], enc.high[1]);
+				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", encoder1.cnt[0], encoder1.cnt[1], encoder1.period, encoder1.direction, encoder1.high[0], encoder1.high[1]);
 			}
 			if(print_speed){
-				uprintf("encoder speed = [%f];\n\r", encoder_GetLatestSpeed(&enc));
+				uprintf("encoder speed = [%f];\n\r", encoder_GetLatestSpeed(&encoder1));
 			}
 			if(print_pid){
-				PID pid = pid_GetCurrentPIDValues();
+				PID pid = pid_GetCurrentPIDValues(&pc1);
 				uprintf("PID = [%f, %f, %f]\n\r", pid.P, pid.I, pid.D);
 			}
 		}
@@ -251,9 +249,9 @@ void HandleCommand(char * input){
 		print_pid = !print_pid;
 	}else if(!memcmp(input, "dac", 3)){
 		char * ptr;
-		pid_SetOutput(strtol(input+4, &ptr, 10));
+		pid_SetOutput(strtol(input+4, &ptr, 10), &pc1);
 	}else if(!memcmp(input, "ref", 3)){
-		pid_SetReference(atof(input+4));
+		pid_SetReference(atof(input+4), &pc1);
 	}else if(!strcmp(input, "printdac")){
 		print_dac = !print_dac;
 	}
@@ -270,10 +268,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(GPIO_Pin);
-  encoder_Input(GPIO_Pin, &enc);
+  encoder_Input(GPIO_Pin, &encoder1);
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    pid_Control(encoder_CalculateSpeed(&enc));
+    pid_Control(encoder_CalculateSpeed(&encoder1), &pc1);
 }
 /* USER CODE END 4 */
 

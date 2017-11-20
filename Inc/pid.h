@@ -8,7 +8,7 @@
 #ifndef PID_H_
 #define PID_H_
 
-#include "stm32f0xx_hal.h"
+#include "stm32f0xx_hal.h"// choose correct one
 #include "tim.h"
 #include "gpio.h"
 
@@ -31,7 +31,7 @@ typedef struct{
 	float Kp;
 	float Ki;
 	float Kd;
-}PID_Terms;// holds the constants
+}PID_Terms;// holds the control factors
 typedef struct{
 	PID_Terms K_terms;
 	PID pid;
@@ -39,25 +39,27 @@ typedef struct{
 	float timestep;
 	TIM_HandleTypeDef* actuator;
 	TIM_HandleTypeDef* CallbackTimer;
-}PID_controller;
+	float CLK_FREQUENCY;
+	int16_t current_pwm;
+}PID_controller_HandleTypeDef;
+
+PID_controller_HandleTypeDef global_PID;
+
+
 // directly set the current output, if the pid control loop is running, this will not have much effect
-void pid_SetOutput(int pwm);
+void pid_SetOutput(int pwm, PID_controller_HandleTypeDef* pc);
 // return all pid controller parameters
-PID_controller pid_GetControllerValue();
+PID_controller_HandleTypeDef pid_GetControllerValue();
 /* return current P, I and D values
  *
  */
-PID pid_GetCurrentPIDValues();
-// returns the latest read speed
-float pid_GetLatestSpeed();
+PID pid_GetCurrentPIDValues(PID_controller_HandleTypeDef* pc);
 // Returns the current output to the actuator
-int16_t pid_GetCurrentOutput();
+int16_t pid_GetCurrentOutput(PID_controller_HandleTypeDef* pc);
 // Set the reference value
-void pid_SetReference(float ref);
-// Handle the interrupts of the encoder lines
-void pid_EncoderInput(uint8_t channel);//0 = a, 0 = b;
+void pid_SetReference(float ref, PID_controller_HandleTypeDef* pc);
 // calculate the current speed according to the encoder values
-void pid_Init(PID_controller PID_controller);
+void pid_Init(PID_controller_HandleTypeDef* PID_controller);
 // controls the output, to be called on a regular schedule
-void pid_Control(float current_speed);
+void pid_Control(float current_speed, PID_controller_HandleTypeDef* pc);
 #endif /* PID_H_ */
