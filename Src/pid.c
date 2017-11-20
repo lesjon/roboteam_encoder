@@ -1,7 +1,6 @@
 #include "pid.h"
 #include "stm32f0xx_hal.h"
 #include "tim.h"
-#include "PuttyInterface.h"
 
 #define CLK_FREQUENCY 48000000
 
@@ -32,7 +31,6 @@ void pid_Init(PID_controller PID_controller){
 	HAL_TIM_PWM_Start(global_PID.actuator,TIM_CHANNEL_1);
 	HAL_TIM_Base_Start_IT(global_PID.CallbackTimer);
 	timestep = ((float)global_PID.CallbackTimer->Init.Period)/((float)CLK_FREQUENCY/((float)(global_PID.CallbackTimer->Init.Prescaler + 1)));
-	uprintf("Init pid:\n\rtimestep = [%f]", timestep);
 }
 void pid_Control(float current_speed){
 	static float prev_e = 0;

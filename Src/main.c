@@ -65,11 +65,11 @@ uint32_t prev_tick = 0;
 uint8_t rec_buf[8];
 char small_buf;
 
-encoder enc = {
-		.ENCODER_A = ENCODER_A_Pin,
-		.ENCODER_A_Port = ENCODER_A_GPIO_Port,
-		.ENCODER_B = ENCODER_B_Pin,
-		.ENCODER_B_Port = ENCODER_B_GPIO_Port,
+encoder_HandleTypeDef enc = {
+		.CHANNEL_A = ENCODER_A_Pin,
+		.CHANNEL_A_Port = ENCODER_A_GPIO_Port,
+		.CHANNEL_B = ENCODER_B_Pin,
+		.CHANNEL_B_Port = ENCODER_B_GPIO_Port,
 		.MeasurementTimer = &htim2,
 		.a_cnt = 0,
 		.b_cnt = 0,
