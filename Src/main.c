@@ -46,50 +46,61 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include "PuttyInterface.h"
+#include "pid.h"
+#include "encoder.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-typedef struct{
-	int a_cnt;
-	int b_cnt;
-	bool B_high;
-	bool A_high;
-	int8_t direction;
-	int period;//us
-}encoder;
-typedef struct{
-	float Kp;
-	float Ki;
-	float Kd;
-	float timestep;
-	float COUNTS_PER_ROTATION;
-	float CLK_FREQUENCY;
-	float GEAR_RATIO;
-	TIM_HandleTypeDef* actuator;
-	TIM_HandleTypeDef* MeasurementTimer;
-	TIM_HandleTypeDef* CallbackTimer;
-}PID_controller;
 
-bool huart2_Rx_flag = false;
+
+
+// print to screen
 bool print_time = false;
 bool print_encoder = false;
 bool print_speed = false;
 bool print_dac = false;
 bool print_pid = false;
-float P = 0;
-float I = 0;
-float D = 0;
-float timestep;
-PID_controller global_PID;
-uint32_t prev_tick = 0;
+uint32_t prev_tick = 0;// counter for the frequency at which to report
+
+//values for puttyinterface
 uint8_t rec_buf[8];
-int16_t current_pwm = 0x0;
-float v_ref = 0;
 char small_buf;
-encoder enc = {0,0,0,0};
+bool huart2_Rx_flag = false;
+
+typedef struct{
+	encoder_HandleTypeDef* encoder;
+	PID_controller_HandleTypeDef* PID;
+}motor_HandleTypeDef;// holds an encoder and pid controller that belong together
+
+encoder_HandleTypeDef encoder1 = {
+		.CHANNEL = {ENCODER_A_Pin,ENCODER_B_Pin},
+		.CHANNEL_Port = {ENCODER_A_GPIO_Port, ENCODER_B_GPIO_Port},
+		.MeasurementTimer = &htim2,
+		.cnt = {0,0},
+		.high = {false, false},
+		.direction = 0,
+		.period = 0xffff,
+		.speed = 0,
+		.COUNTS_PER_ROTATION = 12,
+		.CLK_FREQUENCY = 48000000,
+		.GEAR_RATIO = 10,
+};
+PID_controller_HandleTypeDef pc1 = {
+		.pid = {0,0,0},
+		.K_terms = {1000, 100, .1},
+		.v_ref = 0,
+		.timestep = 0,
+		.actuator = &htim14,
+		.CallbackTimer = &htim6,
+		.CLK_FREQUENCY = 48000000,
+		.current_pwm = 0,
+};
+
+motor_HandleTypeDef motors[4];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -98,10 +109,6 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 void HandleCommand(char * input);
-void EncoderInput(uint8_t channel);//0 = a, 0 = b;
-float CalculateSpeed(encoder *encoder);
-void Pid_Init(PID_controller PID_controller);
-void Pid(float v_ref);
 
 /* USER CODE END PFP */
 
@@ -140,16 +147,14 @@ int main(void)
   MX_TIM14_Init();
 
   /* USER CODE BEGIN 2 */
-  PID_controller pid = {
-  .CallbackTimer = &htim6,
-  .MeasurementTimer = &htim2,
-  .actuator = &htim14,
-  };
-  Pid_Init(pid);
+  motors[0].PID = &pc1;
+  motors[0].encoder = &encoder1;
+  pid_Init(motors[0].PID);
+  encoder_Init(motors[0].encoder);
 
-	char * startmessage = "---------------------\n\r";
-	uprintf(startmessage);
-	HAL_UART_Receive_IT(&huart1, rec_buf, 1);
+  char * startmessage = "---------------------\n\r";
+  uprintf(startmessage);
+  HAL_UART_Receive_IT(&huart1, rec_buf, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -160,21 +165,23 @@ int main(void)
 			prev_tick = HAL_GetTick();
 
 			if(print_dac){
-				uprintf("v_ref = [%f], current_pwm = [%d]\n\r", v_ref, current_pwm);
+				uprintf("v_ref = [%f], current_pwm = [%d]\n\r", motors[0].PID->v_ref, pid_GetCurrentOutput(motors[0].PID));
 			}
 			if(print_time){
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
 			}
 			if(print_encoder){
-				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", enc.a_cnt, enc.b_cnt, enc.period, enc.direction, enc.B_high, enc.A_high);
+				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", motors[0].encoder->cnt[0], motors[0].encoder->cnt[1], motors[0].encoder->period, motors[0].encoder->direction, motors[0].encoder->high[0], motors[0].encoder->high[1]);
 			}
 			if(print_speed){
-				uprintf("encoder speed = [%f];\n\r", CalculateSpeed(&enc));
+				uprintf("encoder speed = [%f];\n\r", encoder_GetLatestSpeed(motors[0].encoder));
 			}
 			if(print_pid){
-				uprintf("PID = [%f, %f, %f]\n\r", P, I, D);
+				PID pid = pid_GetCurrentPIDValues(motors[0].PID);
+				uprintf("PID = [%f, %f, %f]\n\r", pid.P, pid.I, pid.D);
 			}
 		}
+
 		if(huart2_Rx_flag){
 			huart2_Rx_flag = false;
 			HandlePcInput(&small_buf, 1, HandleCommand);
@@ -257,11 +264,9 @@ void HandleCommand(char * input){
 		print_pid = !print_pid;
 	}else if(!memcmp(input, "dac", 3)){
 		char * ptr;
-	    current_pwm = strtol(input+4, &ptr, 10);
-
-		__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_pwm);
+		pid_SetOutput(strtol(input+4, &ptr, 10), motors[0].PID);
 	}else if(!memcmp(input, "ref", 3)){
-	    v_ref = atof(input+4);
+		pid_SetReference(atof(input+4), motors[0].PID);
 	}else if(!strcmp(input, "printdac")){
 		print_dac = !print_dac;
 	}
@@ -278,113 +283,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   /* Prevent unused argument(s) compilation warning */
   UNUSED(GPIO_Pin);
-
-  switch(GPIO_Pin){
-  case 0x0040:
-	  EncoderInput(0);
-	  break;
-  case 0x0080:
-	  EncoderInput(1);
-	  break;
-  }
-
+  encoder_Input(GPIO_Pin, motors[0].encoder);
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    Pid(v_ref);
-}
-
-void EncoderInput(uint8_t channel){
-	if(channel == 0){
-		enc.A_high = HAL_GPIO_ReadPin(ENCODER_A_GPIO_Port, ENCODER_A_Pin);
-		if(enc.A_high){
-			enc.period = __HAL_TIM_GET_COUNTER(global_PID.MeasurementTimer);
-			__HAL_TIM_SET_COUNTER(global_PID.MeasurementTimer, 0);
-			if(enc.B_high){
-				enc.a_cnt--;
-				enc.direction = -1;
-			}else{
-				enc.a_cnt++;
-				enc.direction = 1;
-			}
-		}else{
-			if(enc.B_high){
-				enc.a_cnt++;
-				enc.direction = 1;
-			}else{
-				enc.a_cnt--;
-				enc.direction = -1;
-			}
-		}
-	}else if(channel == 1){
-		enc.B_high = HAL_GPIO_ReadPin(ENCODER_B_GPIO_Port, ENCODER_B_Pin);
-		if(enc.B_high){
-			if(enc.A_high){
-				enc.b_cnt++;
-				enc.direction = 1;
-			}else{
-				enc.b_cnt--;
-				enc.direction = -1;
-			}
-		}else{
-			if(enc.A_high){
-				enc.b_cnt--;
-				enc.direction = -1;
-			}else{
-				enc.b_cnt++;
-				enc.direction = 1;
-			}
-		}
-	}
-}
-#define COUNTS_PER_ROTATION 12
-#define CLK_FREQUENCY		48000000
-#define GEAR_RATIO			10
-#define Kp					1000
-#define Ki					100
-#define Kd					.1
-
-
-//PID_controller pid = {
-//.CallbackTimer = &htim6,
-//.MeasurementTimer = &htim2,
-//.actuator = &htim14,
-//};
-
-float CalculateSpeed(encoder *encoder){
-	float rot_speed = 0;
-	if(encoder->period > __HAL_TIM_GET_COUNTER(global_PID.MeasurementTimer)){// if still zero, no encoder values were received
-		float rot_period = encoder->period * COUNTS_PER_ROTATION;
-		rot_speed = 1/rot_period;
-		rot_speed = rot_speed * ((CLK_FREQUENCY/(global_PID.MeasurementTimer->Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
-		//encoder->period = 0;// So that if no new encoder values are caught we now speed = zero
-	}else{
-		float rot_period = __HAL_TIM_GET_COUNTER(global_PID.MeasurementTimer) * COUNTS_PER_ROTATION;
-		rot_speed = 1/rot_period;
-		rot_speed = rot_speed * ((CLK_FREQUENCY/(global_PID.MeasurementTimer->Init.Prescaler+1))/GEAR_RATIO) * enc.direction;
-	}
-	return rot_speed;
-}
-
-void Pid_Init(PID_controller PID_controller){
-	global_PID = PID_controller;
-	HAL_TIM_PWM_Start(global_PID.actuator,TIM_CHANNEL_1);
-	__HAL_TIM_ENABLE(global_PID.MeasurementTimer);
-	HAL_TIM_Base_Start_IT(global_PID.CallbackTimer);
-	timestep = ((float)global_PID.CallbackTimer->Init.Period)/((float)CLK_FREQUENCY/((float)(global_PID.CallbackTimer->Init.Prescaler + 1)));
-}
-void Pid(float v_ref){
-	static float prev_error = 0;
-	float error = v_ref - CalculateSpeed(&enc);
-	P = Kp*error;
-	I += Ki*error*timestep;
-	I = (I > 0xfff) ? 0xfff : (I < 0) ? 0 : I;
-	D = (Kd*(error-prev_error))/timestep;
-	prev_error = error;
-
-	current_pwm = (int)(P + I + D);
-	current_pwm = (current_pwm > 0xfff) ? 0xfff : (current_pwm < 0) ? 0 : current_pwm;
-
-	__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, current_pwm);
+    pid_Control(encoder_CalculateSpeed(motors[0].encoder), motors[0].PID);
 }
 /* USER CODE END 4 */
 

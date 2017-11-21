@@ -15,6 +15,7 @@
 "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart.o"
 "Drivers/STM32F0xx_HAL_Driver/Src/stm32f0xx_hal_uart_ex.o"
 "Src/PuttyInterface.o"
+"Src/encoder.o"
 "Src/gpio.o"
 "Src/main.o"
 "Src/pid.o"

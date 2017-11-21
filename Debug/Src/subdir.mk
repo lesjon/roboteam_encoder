@@ -5,6 +5,7 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 ../Src/PuttyInterface.c \
+../Src/encoder.c \
 ../Src/gpio.c \
 ../Src/main.c \
 ../Src/pid.c \
@@ -16,6 +17,7 @@ C_SRCS += \
 
 OBJS += \
 ./Src/PuttyInterface.o \
+./Src/encoder.o \
 ./Src/gpio.o \
 ./Src/main.o \
 ./Src/pid.o \
@@ -27,6 +29,7 @@ OBJS += \
 
 C_DEPS += \
 ./Src/PuttyInterface.d \
+./Src/encoder.d \
 ./Src/gpio.d \
 ./Src/main.d \
 ./Src/pid.d \
