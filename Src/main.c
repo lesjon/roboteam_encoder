@@ -55,15 +55,13 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
-
-
 // print to screen
 bool print_time = false;
 bool print_encoder = false;
 bool print_speed = false;
 bool print_dac = false;
 bool print_pid = false;
-uint32_t prev_tick = 0;// counter for the frequency at which to report
+uint32_t prev_tick = 0;// Counter for the frequency at which to report
 
 //values for puttyinterface
 uint8_t rec_buf[8];
@@ -83,19 +81,21 @@ encoder_HandleTypeDef encoder1 = {
 		.high = {false, false},
 		.direction = 0,
 		.period = 0xffff,
-		.speed = 0,
-		.COUNTS_PER_ROTATION = 12,
-		.CLK_FREQUENCY = 48000000,
-		.GEAR_RATIO = 10,
+		.last_tim_sample = 0xFFFFFFFF,
+		.prev_tim_sample = 0,
+		.speed = 0.0F,
+		.COUNTS_PER_ROTATION = 12.0F,
+		.CLK_FREQUENCY = 48000000.0F,
+		.GEAR_RATIO = 10.0F,
 };
 PID_controller_HandleTypeDef pc1 = {
 		.pid = {0,0,0},
-		.K_terms = {1000, 100, .1},
-		.v_ref = 0,
-		.timestep = 0,
+		.K_terms = {1000.0F, 10.0F, .1F},
+		.ref = 0.0F,
+		.timestep = 0.0F,
 		.actuator = &htim14,
 		.CallbackTimer = &htim6,
-		.CLK_FREQUENCY = 48000000,
+		.CLK_FREQUENCY = 48000000.0F,
 		.current_pwm = 0,
 };
 
@@ -165,13 +165,13 @@ int main(void)
 			prev_tick = HAL_GetTick();
 
 			if(print_dac){
-				uprintf("v_ref = [%f], current_pwm = [%d]\n\r", motors[0].PID->v_ref, pid_GetCurrentOutput(motors[0].PID));
+				uprintf("v_ref = [%f], current_pwm = [%d]\n\r", motors[0].PID->ref, pid_GetCurrentOutput(motors[0].PID));
 			}
 			if(print_time){
 				uprintf("htim2 CNT = [%ld];\n\r", __HAL_TIM_GET_COUNTER(&htim2));
 			}
 			if(print_encoder){
-				uprintf("encoder readings are = [%d , %d, %d, %i, %d, %d];\n\r", motors[0].encoder->cnt[0], motors[0].encoder->cnt[1], motors[0].encoder->period, motors[0].encoder->direction, motors[0].encoder->high[0], motors[0].encoder->high[1]);
+				uprintf("encoder readings are = [%ld, %ld, %i, %d, %d];\n\r", motors[0].encoder->cnt[0] + motors[0].encoder->cnt[1], motors[0].encoder->period, motors[0].encoder->direction, motors[0].encoder->high[0], motors[0].encoder->high[1]);
 			}
 			if(print_speed){
 				uprintf("encoder speed = [%f];\n\r", encoder_GetLatestSpeed(motors[0].encoder));
@@ -269,6 +269,12 @@ void HandleCommand(char * input){
 		pid_SetReference(atof(input+4), motors[0].PID);
 	}else if(!strcmp(input, "printdac")){
 		print_dac = !print_dac;
+	}else if(!memcmp(input, "set kp", 5)){
+		motors[0].PID->K_terms.Kp = atof(input+6);
+	}else if(!memcmp(input, "set ki", 5)){
+		motors[0].PID->K_terms.Ki = atof(input+6);
+	}else if(!memcmp(input, "set kd", 5)){
+		motors[0].PID->K_terms.Kd = atof(input+6);
 	}
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
@@ -287,6 +293,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     pid_Control(encoder_CalculateSpeed(motors[0].encoder), motors[0].PID);
+    //pid_Control(motors[0].encoder->cnt[0] + motors[0].encoder->cnt[1], motors[0].PID);
 }
 /* USER CODE END 4 */
 

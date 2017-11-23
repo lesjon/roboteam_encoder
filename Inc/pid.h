@@ -35,16 +35,13 @@ typedef struct{
 typedef struct{
 	PID_Terms K_terms;
 	PID pid;
-	float v_ref;
+	float ref;
 	float timestep;
 	TIM_HandleTypeDef* actuator;
 	TIM_HandleTypeDef* CallbackTimer;
 	float CLK_FREQUENCY;
 	int16_t current_pwm;
 }PID_controller_HandleTypeDef;
-
-PID_controller_HandleTypeDef global_PID;
-
 
 // directly set the current output, if the pid control loop is running, this will not have much effect
 void pid_SetOutput(int pwm, PID_controller_HandleTypeDef* pc);
