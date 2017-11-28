@@ -21,10 +21,10 @@ void pid_SetReference(float ref, PID_controller_HandleTypeDef* pc){
 PID pid_GetCurrentPIDValues(PID_controller_HandleTypeDef* pc){
 	return pc->pid;
 }
-void pid_Init(PID_controller_HandleTypeDef* PID_controller){
+void pid_Init(PID_controller_HandleTypeDef* PID_controller, uint32_t n_motors){
 	HAL_TIM_PWM_Start(PID_controller->actuator,TIM_CHANNEL_1);
 	HAL_TIM_Base_Start_IT(PID_controller->CallbackTimer);
-	PID_controller->timestep = ((float)PID_controller->CallbackTimer->Init.Period)/(PID_controller->CLK_FREQUENCY/((float)(PID_controller->CallbackTimer->Init.Prescaler + 1)));
+	PID_controller->timestep = (((float)n_motors*(float)PID_controller->CallbackTimer->Init.Period))/(PID_controller->CLK_FREQUENCY/((float)(PID_controller->CallbackTimer->Init.Prescaler + 1)));
 }
 void pid_Control(float sensor_output, PID_controller_HandleTypeDef* pc){
 	static float prev_e = 0;

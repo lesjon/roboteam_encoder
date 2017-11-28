@@ -54,6 +54,8 @@
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
+#define AMOUNT_OF_MOTORS 4
+
 
 // print to screen
 bool print_time = false;
@@ -73,7 +75,7 @@ typedef struct{
 	PID_controller_HandleTypeDef* PID;
 }motor_HandleTypeDef;// holds an encoder and pid controller that belong together
 
-encoder_HandleTypeDef encoder1 = {
+encoder_HandleTypeDef encoder0 = {
 		.CHANNEL = {ENCODER_A_Pin,ENCODER_B_Pin},
 		.CHANNEL_Port = {ENCODER_A_GPIO_Port, ENCODER_B_GPIO_Port},
 		.MeasurementTimer = &htim2,
@@ -88,18 +90,19 @@ encoder_HandleTypeDef encoder1 = {
 		.CLK_FREQUENCY = 48000000.0F,
 		.GEAR_RATIO = 10.0F,
 };
-PID_controller_HandleTypeDef pc1 = {
+PID_controller_HandleTypeDef pc0 = {
 		.pid = {0,0,0},
 		.K_terms = {1000.0F, 10.0F, .1F},
 		.ref = 0.0F,
 		.timestep = 0.0F,
 		.actuator = &htim14,
+		.actuator_channel = TIM_CHANNEL_1,
 		.CallbackTimer = &htim6,
 		.CLK_FREQUENCY = 48000000.0F,
 		.current_pwm = 0,
 };
 
-motor_HandleTypeDef motors[4];
+motor_HandleTypeDef motors[AMOUNT_OF_MOTORS];
 
 /* USER CODE END PV */
 
@@ -145,11 +148,14 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM6_Init();
   MX_TIM14_Init();
+  MX_TIM15_Init();
 
   /* USER CODE BEGIN 2 */
-  motors[0].PID = &pc1;
-  motors[0].encoder = &encoder1;
-  pid_Init(motors[0].PID);
+
+
+  motors[0].PID = &pc0;
+  motors[0].encoder = &encoder0;
+  pid_Init(motors[0].PID, AMOUNT_OF_MOTORS);
   encoder_Init(motors[0].encoder);
 
   char * startmessage = "---------------------\n\r";
@@ -292,8 +298,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   encoder_Input(GPIO_Pin, motors[0].encoder);
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    pid_Control(encoder_CalculateSpeed(motors[0].encoder), motors[0].PID);
-    //pid_Control(motors[0].encoder->cnt[0] + motors[0].encoder->cnt[1], motors[0].PID);
+	static uint32_t motor_ptr = 0;
+    pid_Control(encoder_CalculateSpeed(motors[motor_ptr].encoder), motors[motor_ptr].PID);
+    motor_ptr = (motor_ptr + 1) % AMOUNT_OF_MOTORS;
 }
 /* USER CODE END 4 */
 

@@ -38,6 +38,7 @@ typedef struct{
 	float ref;
 	float timestep;
 	TIM_HandleTypeDef* actuator;
+	uint32_t actuator_channel;
 	TIM_HandleTypeDef* CallbackTimer;
 	float CLK_FREQUENCY;
 	int16_t current_pwm;
@@ -56,7 +57,7 @@ int16_t pid_GetCurrentOutput(PID_controller_HandleTypeDef* pc);
 // Set the reference value
 void pid_SetReference(float ref, PID_controller_HandleTypeDef* pc);
 // calculate the current speed according to the encoder values
-void pid_Init(PID_controller_HandleTypeDef* PID_controller);
+void pid_Init(PID_controller_HandleTypeDef* PID_controller, uint32_t n_motors);
 // controls the output, to be called on a regular schedule
 void pid_Control(float current_speed, PID_controller_HandleTypeDef* pc);
 #endif /* PID_H_ */
